@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using AdvancedHookManaged;
 using GTA;
 using GTA.Native;
@@ -34,7 +35,7 @@ namespace ultimate_overtaking_fix
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        void MainScript_Tick(object sender, EventArgs e)
+        async void MainScript_Tick(object sender, EventArgs e)
         {
             try
             {
@@ -45,14 +46,47 @@ namespace ultimate_overtaking_fix
                 {
                     // Get a vehicle behind the layer vehicle in a 4 meter radius and order it's driver to stand still
                     var car = World.GetClosestVehicle(Player.Character.CurrentVehicle.GetOffsetPosition(new Vector3(0f, -7f, 0f)), 4f);
+                    if(car == null)
+                    {
+                        Log(nameof(MainScript_Tick), $"Closest car was null");
+                        return;
+                    }
                     var carDriver = car.GetPedOnSeat(VehicleSeat.Driver);
-                    carDriver.Task.StandStill(250);
+                    if (carDriver == null)
+                    {
+                        Log(nameof(MainScript_Tick), $"Car driver in {car.Name} was null.");
+                        await FreezeCarAndUnfreezeAfterTenSeconds();
+                        return;
+                    }
+
+                    if (carDriver.Task == null)
+                    {
+                        Log(nameof(MainScript_Tick), $"Car driver 'Task' was null, cannot make them stand still");
+                        await FreezeCarAndUnfreezeAfterTenSeconds();
+
+                    }
+                    carDriver.Task.StandStill(110);
+
+                    #region Implementation
+                    async Task FreezeCarAndUnfreezeAfterTenSeconds()
+                    {
+                        Log(nameof(MainScript_Tick), $"Freezing {car.Name} for 10 seconds");
+                        car.FreezePosition = true;
+                        await Task.Delay(10000).ContinueWith((a) =>
+                        {
+                            car.FreezePosition = false;
+                            Log(nameof(MainScript_Tick), $"Car {car.Name} was unfrozen after 10 seconds");
+                        });
+                    } 
+                    #endregion
                 }
             }
             catch (Exception E)
             {
-                Log("Tick", E.Message);
+                Log(nameof(MainScript_Tick), E.Message);
             }
+
+
         }
 
         #region Methods
